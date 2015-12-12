@@ -58,6 +58,7 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 				if (iscmd){
 					iscmd = 0;
 					isopt = 1;
+					arrlist_add(p_cmd->opt, p);
 					p = jstr_create("");
 					continue;
 				}
@@ -71,6 +72,7 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 				if (iscmd&&jstr_length(p) > 0){
 					iscmd = 0;
 					isopt = 1;
+					arrlist_add(p_cmd->opt, p);
 					p = jstr_create("");
 					subredir = creat_redirect();
 					tmpredir_len = getfilename(subredir, subcmd, i);
