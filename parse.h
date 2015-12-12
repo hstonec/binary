@@ -3,6 +3,10 @@
 
 #define SYNTAX_ERR 127
 
+#define REDIR_STDIN 0
+#define REDIR_STDOUT 1
+#define REDIR_STDAPPEND 2
+
 typedef struct redirect{
 	int type;	// 0:stdin_redirect, 1:stdout_redirect, 2:append_stdout
 	JSTRING *filename;
