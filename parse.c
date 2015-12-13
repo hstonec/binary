@@ -85,8 +85,10 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 					continue;
 				}
 				if (isopt){
-					arrlist_add(p_cmd->opt, p);
-					p = jstr_create("");
+					if (jstr_length(p) > 0){
+						arrlist_add(p_cmd->opt, p);
+						p = jstr_create("");
+					}
 					subredir = creat_redirect();
 					tmpredir_len = getfilename(subredir, subcmd, &j);
 					if (tmpredir_len == 0)
@@ -234,14 +236,13 @@ PARSED_CMD *creat_pcmd(void)
 }
 void free_pcmd(ARRAYLIST *cmd_list)
 {
-	
-	int i, j;
+	int i, j, l;
 	REDIRECT* p;
 	PARSED_CMD *p_cmd;
 	for (j = 0; j < arrlist_size(cmd_list); j++){
 		p_cmd = (PARSED_CMD *)arrlist_get(cmd_list, j);
 		jstr_free(p_cmd->command);
-		for (i = 0; i < arrlist_size(p_cmd->opt); i++){
+		for (i = 1; i < arrlist_size(p_cmd->opt); i++){
 			jstr_free((JSTRING*)arrlist_get(p_cmd->opt, i));
 		}
 		for (i = 0; i < arrlist_size(p_cmd->redirect_list); i++){
@@ -252,6 +253,11 @@ void free_pcmd(ARRAYLIST *cmd_list)
 		arrlist_free(p_cmd->redirect_list);
 		free(p_cmd);
 		p_cmd = NULL;
+	}
+	l = arrlist_size(cmd_list);
+	for (i = 0; i < l; i++)
+	{
+		arrlist_remove(cmd_list, 0);
 	}
 }
 
