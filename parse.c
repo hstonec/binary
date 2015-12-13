@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <ctype.h>
+#include <bsd/stdlib.h>
 
 #include "macros.h"
 #include "arraylist.h"
@@ -13,12 +14,13 @@
 PARSED_CMD *creat_pcmd(void);
 REDIRECT *creat_redirect(void);
 void free_redir(REDIRECT *redir);
-int getfilename(REDIRECT *subredir, JSTRING *subcmd, int cur_index);
+int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index);
 int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list);
 
 int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 {
 	//printf("%s\n", jstr_cstr(str_cmd));
+	char *progname = getprogname();
 	int i, j;
 	char c;
 	int iscmd = 0;
@@ -72,19 +74,21 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 					arrlist_add(p_cmd->opt, p);
 					p = jstr_create("");
 					subredir = creat_redirect();
-					tmpredir_len = getfilename(subredir, subcmd, i);
-					if (tmpredir_len == 0)
+					tmpredir_len = getfilename(subredir, subcmd, &j);
+					if (tmpredir_len == 0){
+						fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", progname, c);
 						return SYNTAX_ERR;
+					}
 					else{
 						arrlist_add(p_cmd->redirect_list, subredir);
-						i += tmpredir_len;
 					}
+					continue;
 				}
 				if (isopt){
 					arrlist_add(p_cmd->opt, p);
 					p = jstr_create("");
 					subredir = creat_redirect();
-					tmpredir_len = getfilename(subredir, subcmd, i);
+					tmpredir_len = getfilename(subredir, subcmd, &j);
 					if (tmpredir_len == 0)
 						return SYNTAX_ERR;
 					else{
@@ -153,19 +157,19 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 }
 
 
-int getfilename(REDIRECT *subredir, JSTRING *subcmd, int cur_index)
+int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index)
 {
 	int i = 0;
 	int ifredir = 0;
 	subredir->filename = jstr_create("");
 	char c;
-	for (i = cur_index; i < jstr_length(subcmd); i++)
+	for (i = *cur_index; i < jstr_length(subcmd); i++)
 	{
 		c = jstr_charat(subcmd, i);
 		if (c == '<'){
 			if (jstr_length(subredir->filename) == 0){
 				if (ifredir)
-					return SYNTAX_ERR;
+					return 0;
 				else{
 					ifredir = 1;
 					subredir->type = REDIR_STDIN;
@@ -179,15 +183,19 @@ int getfilename(REDIRECT *subredir, JSTRING *subcmd, int cur_index)
 		if (c == '>'){
 			if (jstr_length(subredir->filename) == 0){
 				if (ifredir)
-					return SYNTAX_ERR;
+					return 0;
 				else{
 					ifredir = 1;
-					if (jstr_charat(subcmd, i + 1) == '>'){
-						subredir->type = REDIR_STDAPPEND;
-						i++;
+					if (i + 1 < jstr_length(subcmd)){
+						if (jstr_charat(subcmd, i + 1) == '>'){
+							subredir->type = REDIR_STDAPPEND;
+							i++;
+						}
+						else
+							subredir->type = REDIR_STDOUT;
 					}
 					else
-						subredir->type = REDIR_STDOUT;
+						return 0;
 					continue;
 				}
 			}
@@ -195,13 +203,22 @@ int getfilename(REDIRECT *subredir, JSTRING *subcmd, int cur_index)
 		if (isspace(c)){
 			if (jstr_length(subredir->filename) == 0)
 				continue;
-			else
+			else{
+				if (subredir->type == REDIR_STDAPPEND)
+					*cur_index = *cur_index + jstr_length(subredir->filename) + 1;
+				else
+					*cur_index += jstr_length(subredir->filename);
 				return jstr_length(subredir->filename);
+			}
 		}
 		jstr_append(subredir->filename, c);
 	}
+	if (subredir->type == REDIR_STDAPPEND)
+		*cur_index = *cur_index + jstr_length(subredir->filename) + 1;
+	else
+		*cur_index += jstr_length(subredir->filename);
 	if (jstr_length(subredir->filename) == 0)
-		return SYNTAX_ERR;
+		return 0;
 	else
 		return jstr_length(subredir->filename);
 }
