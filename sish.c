@@ -16,12 +16,13 @@
 #include "sish.h"
 #include "parse.h"
 
-static void exec_command(JSTRING *);
+static void exec_command(JSTRING *, ARRAYLIST *);
 static void do_exec(PARSED_CMD *, int, int);
 static void print_prompt();
 static void sigint_handler(int);
 static void sigchld_handler(int);
 
+static BOOL has_fg;
 static JSTRING *command;
 static pid_t env_dollar;
 static int env_question;
@@ -31,15 +32,20 @@ sish_run(struct sishopt *ssopt)
 {
 	char c;
 	int exit_status;
+	extern BOOL has_fg;
 	extern JSTRING *command;
 	extern pid_t env_dollar;
 	extern int env_question;
 	pid_t pid;
-	
+	int parse_status;
+	ARRAYLIST *cmd_list;
+	BOOL run_bg;
 	
 	command = jstr_create("");
 	env_dollar = getpid();
 	env_question = 0;
+	cmd_list = arrlist_create();
+	
 	
 	if (signal(SIGINT, sigint_handler) == SIG_ERR)
 		perror_exit("register SIGINT handler error");
@@ -48,25 +54,47 @@ sish_run(struct sishopt *ssopt)
 		perror_exit("register SIGCHLD handler error");
 	
 	for (;;) {
+		/* Clear what have been read before printing prompt */
+		has_fg = FALSE;
 		jstr_trunc(command, 0, 0);
-		
+		free_pcmd(cmd_list);
 		print_prompt();
+			
+
+		/* Read one line command from stdin */
 		while ((c = (char)getc(stdin)) != '\n')
 			jstr_append(command, c);
 		
-		printf("com: %s\n", jstr_cstr(command));
 		
+		/* Parse the command, if error occurs, set %?. */
+		parse_status = parse_command(command, cmd_list, &run_bg);
+		if (parse_status != 0) {
+			env_question = parse_status;
+			continue;
+		}
 		
+		if (run_bg == FALSE)
+			has_fg = TRUE;
+		
+		/* 
+		 * If the size of cmd_list is 0, that means the command
+		 * is null, continue to read next command.
+		 */
+		if (arrlist_size(cmd_list) == 0)
+			continue;
 		
 		if ((pid = fork()) == -1)
 			perror_exit("fork error");
 		
 		if (pid > 0) {
-			// if this is not a background command, then father should wait()
-			if (wait(&exit_status) != -1)
-				env_question = WEXITSTATUS(exit_status);
+			/* If not run in background, wait until the command finish */
+			if (run_bg == FALSE) {
+				pid = waitpid(pid, &exit_status, 0);
+				if (pid != -1 && pid != 0)
+					env_question = WEXITSTATUS(exit_status);
+			}
 		} else
-			exec_command(command);
+			exec_command(command, cmd_list);
 
 	}
 	
@@ -74,29 +102,26 @@ sish_run(struct sishopt *ssopt)
 }
 
 static void
-exec_command(JSTRING *cmd)
+exec_command(JSTRING *cmd, ARRAYLIST *cmd_list)
 {
 	size_t i, last;
-	int parse_status;
-	ARRAYLIST *cmd_list;
 	int left_pipefd[2];
 	int right_pipefd[2];
 	int fd_in, fd_out;
 	pid_t pid;
 	
-	cmd_list = arrlist_create();
-	pid = 0;
-	
-	parse_status = parse_command(cmd, cmd_list);
-	if (parse_status != 0)
-		exit(parse_status);
+	/* Cancel SIGINT handler which is inherited from parent */
+	if (signal(SIGINT, SIG_DFL) == SIG_ERR)
+		perror_exit("cancel SIGINT handler error");
 	
 	/* 
-	 * If the size of cmd_list is 0, that means the command
-	 * is null. So, exit without changing $?. 
+	 * If cmd_list only contains 1 command, directly executes it
+	 * in current process.
 	 */
-	if (arrlist_size(cmd_list) == 0)
-		exit(env_question);
+	if (arrlist_size(cmd_list) == 1) {
+		do_exec((PARSED_CMD *)arrlist_get(cmd_list, 0), 
+			    STDIN_FILENO, STDOUT_FILENO);
+	}
 	
 	last = arrlist_size(cmd_list) - 1;
 	for (i = 0; i <= last; i++) {
@@ -122,17 +147,46 @@ exec_command(JSTRING *cmd)
 			if ((pid = fork()) == -1)
 				perror_exit("fork error");
 			
-			if (pid == 0) {
+			if (pid > 0) {
+				/* 
+				 * sish$ left | right | ... | ...
+				 *            ^
+				 * When both 'left' and 'right' processes has been forked,
+                 * the parent process should close both sides of pipe marked
+                 * by '^'.				 
+				 */
 				if (i != 0) {
 					(void)close(left_pipefd[0]);
 					(void)close(left_pipefd[1]);
 				}
-			} else
+			} else {
+				/*
+				 * sish$ first | mid | ... | last
+				 *               ^^^
+				 * If this process is a 'mid' process, it should close
+				 * write side of pipe on its left and read side of pipe
+				 * on its right.
+				 */
+				(void)close(right_pipefd[0]);
+				if (i != 0)
+					(void)close(left_pipefd[1]);
+				
 				do_exec((PARSED_CMD *)arrlist_get(cmd_list, i), 
 					    fd_in, fd_out);
-		} else
+			}
+				
+		} else {
+			/*
+			 * sish$ first | mid | ... | last
+			 *                           ^^^^
+			 * If this process is the 'last' process, it should close
+			 * write side of pipe on its left.
+			 */
+			(void)close(left_pipefd[1]);
 			do_exec((PARSED_CMD *)arrlist_get(cmd_list, i), 
 					fd_in, fd_out);
+		}
+			
 		
 		/* 
 		 * Before deal with next subcommand, move the pipe on the right
@@ -214,19 +268,12 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out)
 	}
 	
 	/* Initialize the argument list */
-	MALLOC(argv, char *, arrlist_size(parsed->opt) + 2);
+	MALLOC(argv, char *, arrlist_size(parsed->opt) + 1);
 	ite = argv;
-	
-	*ite = jstr_cstr(parsed->command);
-	ite++;
-	
-	printf("size:   %zu\n", arrlist_size(parsed->opt));
 	
 	for (i = 0; i < arrlist_size(parsed->opt); i++, ite++) {
 		opt_str = (JSTRING *)arrlist_get(parsed->opt, i);
 		*ite = jstr_cstr(opt_str);
-		
-		printf("opt:   %s\n", *ite);
 	}
 	*ite = NULL;
 	
@@ -252,12 +299,15 @@ print_prompt()
 static void 
 sigint_handler(int signum)
 {
+	
 	extern JSTRING *command;
+	extern BOOL has_fg;
 	
 	jstr_trunc(command, 0, 0);
-	
 	(void)fprintf(stdout, "\n");
-	print_prompt();
+	if (has_fg == FALSE)
+		print_prompt();
+	
 }
 
 static void 
