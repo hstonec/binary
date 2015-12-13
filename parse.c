@@ -5,18 +5,18 @@
 #include <errno.h>
 #include <ctype.h>
 
+#include "macros.h"
 #include "arraylist.h"
 #include "jstring.h"
 #include "parse.h"
 
 PARSED_CMD *creat_pcmd(void);
-void free_pcmd(PARSED_CMD *p_cmd);
 REDIRECT *creat_redirect(void);
 void free_redir(REDIRECT *redir);
 int getfilename(REDIRECT *subredir, JSTRING *subcmd, int cur_index);
-int sep_cmd(JSTRING *input_cmd, ARRAYLIST *bg_list, ARRAYLIST *tmp_list);
+int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list);
 
-int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
+int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 {
 	//printf("%s\n", jstr_cstr(str_cmd));
 	int i, j;
@@ -26,8 +26,8 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 	int ret;
 	// get subcmd
 	ARRAYLIST *tmp_list = arrlist_create();
-	ARRAYLIST *bg_list = arrlist_create();
-	ret = sep_cmd(input_cmd, bg_list, tmp_list);
+	
+	ret = sep_cmd(input_cmd, ifbg, tmp_list);
 	if (ret)
 		return ret;
 	// deal with opt and redirection
@@ -36,8 +36,6 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 	PARSED_CMD *p_cmd;
 	REDIRECT *subredir;
 	// for printing 
-	//PARSED_CMD *p_show;
-	//REDIRECT *r_show;
 
 	int tmpredir_len = 0;
 	for (i = 0; i < arrlist_size(tmp_list); i++)
@@ -47,7 +45,6 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 		p_cmd = creat_pcmd();
 		subcmd = (JSTRING* )arrlist_get(tmp_list, i);
 		p = p_cmd->command;
-		p_cmd->background = *(int *)arrlist_get(bg_list, i);
 
 		for (j = 0; j < jstr_length(subcmd); j++)
 		{
@@ -99,47 +96,24 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list)
 			}
 			jstr_append(p, c);
 		}
+		if (jstr_length(p) > 0)
+			arrlist_add(p_cmd->opt, p);
 		arrlist_add(cmd_list, p_cmd);
 	}
-	/*
-	for (i = 0; i < arrlist_size(cmd_list); i++)
-	{
-		p_show = (PARSED_CMD *)arrlist_get(cmd_list, i);
-		printf("cmd %s\n", jstr_cstr(p_show->command));
-		for (j = 0; j < arrlist_size(p_show->opt); j++)
-			printf("opt%d: %s\n", j, jstr_cstr((JSTRING *)arrlist_get(p_show->opt, j)));
-
-		for (j = 0; j < arrlist_size(p_show->redirect_list); j++){
-			r_show = (REDIRECT *)arrlist_get(p_show->redirect_list, j);
-			printf("redir%d: %s, %d\n", j, jstr_cstr(r_show->filename), r_show->type);
-		}
-		if (p_show->background)
-			printf("in background\n");
-	}
-	*/
 	// free tmp_list
 	for (i = 0; i < arrlist_size(tmp_list); i++)
 	{
 		jstr_free((JSTRING*)arrlist_get(tmp_list, i));
 	}
-	arrlist_free(tmp_list);
-	// free bg_list
-	int *freebg;
-	for (i = 0; i < arrlist_size(bg_list); i++)
-	{
-		freebg=(int*)arrlist_get(bg_list, i);
-		free(freebg);
-		freebg = NULL;
-	}
-	arrlist_free(bg_list);
+	arrlist_free(tmp_list);	
 	return 0;
 }
 
-int sep_cmd(JSTRING *input_cmd, ARRAYLIST *bg_list, ARRAYLIST *tmp_list)
+int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 {
 	int i;
 	char c;
-	int *bg;
+	int bg = 0;
 
 	JSTRING *tmp_cmd = jstr_create("");
 	for (i = 0; i < jstr_length(input_cmd); i++)
@@ -150,9 +124,6 @@ int sep_cmd(JSTRING *input_cmd, ARRAYLIST *bg_list, ARRAYLIST *tmp_list)
 				return SYNTAX_ERR;
 			else{
 				arrlist_add(tmp_list, tmp_cmd);
-				bg = (int *)malloc(sizeof(int));
-				*bg = 0;
-				arrlist_add(bg_list, bg);
 			}
 			tmp_cmd = jstr_create("");
 			continue;
@@ -162,9 +133,10 @@ int sep_cmd(JSTRING *input_cmd, ARRAYLIST *bg_list, ARRAYLIST *tmp_list)
 				return SYNTAX_ERR;
 			else{
 				arrlist_add(tmp_list, tmp_cmd);
-				bg = (int *)malloc(sizeof(int));
-				*bg = 1;
-				arrlist_add(bg_list, bg);
+				if (!bg)
+					bg = 1;
+				else
+					return SYNTAX_ERR;
 			}
 			tmp_cmd = jstr_create("");
 			continue;
@@ -175,10 +147,8 @@ int sep_cmd(JSTRING *input_cmd, ARRAYLIST *bg_list, ARRAYLIST *tmp_list)
 	}
 	if (jstr_length(tmp_cmd) > 0){
 		arrlist_add(tmp_list, tmp_cmd);
-		bg = (int *)malloc(sizeof(int));
-		*bg = 0;
-		arrlist_add(bg_list, bg);
 	}
+	*ifbg = bg;
 	return 0;
 }
 
@@ -240,28 +210,32 @@ PARSED_CMD *creat_pcmd(void)
 {
 	PARSED_CMD *p_cmd;
 	p_cmd = (PARSED_CMD *)malloc(sizeof(PARSED_CMD));
-	p_cmd->background = 0;
 	p_cmd->command = jstr_create("");
 	p_cmd->opt = arrlist_create();
 	p_cmd->redirect_list = arrlist_create();
 	return p_cmd;
 }
-void free_pcmd(PARSED_CMD *p_cmd)
+void free_pcmd(ARRAYLIST *cmd_list)
 {
-	int i;
+	
+	int i, j;
 	REDIRECT* p;
-	jstr_free(p_cmd->command);
-	for (i = 0; i < arrlist_size(p_cmd->opt); i++){
-		jstr_free((JSTRING*)arrlist_get(p_cmd->opt, i));
+	PARSED_CMD *p_cmd;
+	for (j = 0; j < arrlist_size(cmd_list); j++){
+		p_cmd = (PARSED_CMD *)arrlist_get(cmd_list, j);
+		jstr_free(p_cmd->command);
+		for (i = 0; i < arrlist_size(p_cmd->opt); i++){
+			jstr_free((JSTRING*)arrlist_get(p_cmd->opt, i));
+		}
+		for (i = 0; i < arrlist_size(p_cmd->redirect_list); i++){
+			p = (REDIRECT *)arrlist_get(p_cmd->redirect_list, i);
+			free_redir(p);
+		}
+		arrlist_free(p_cmd->opt);
+		arrlist_free(p_cmd->redirect_list);
+		free(p_cmd);
+		p_cmd = NULL;
 	}
-	for (i = 0; i < arrlist_size(p_cmd->redirect_list); i++){
-		p = (REDIRECT *)arrlist_get(p_cmd->redirect_list, i);
-		jstr_free(p->filename);
-	}
-	arrlist_free(p_cmd->opt);
-	arrlist_free(p_cmd->redirect_list);
-	free(p_cmd);
-	p_cmd = NULL;
 }
 
 REDIRECT *creat_redirect(void)
