@@ -9,7 +9,7 @@
  * is always set to 127.
  */
 #define SISH_EXIT_FAILURE 127
-
+#define SISH_EXIT_SUCCESS 0
 
 struct sishopt {
 	BOOL c_flag;

@@ -15,6 +15,7 @@
 #include "func.h"
 #include "sish.h"
 #include "parse.h"
+#include "builtin.h"
 
 static void exec_command(JSTRING *, ARRAYLIST *);
 static void do_exec(PARSED_CMD *, int, int);
@@ -40,6 +41,7 @@ sish_run(struct sishopt *ssopt)
 	int parse_status;
 	ARRAYLIST *cmd_list;
 	BOOL run_bg;
+	int builtin_result;
 	
 	command = jstr_create("");
 	env_dollar = getpid();
@@ -82,6 +84,21 @@ sish_run(struct sishopt *ssopt)
 		 */
 		if (arrlist_size(cmd_list) == 0)
 			continue;
+		
+		/* 
+		 * If the size of cmd_list is 1, and matches to some built
+		 * in commands, it should be executed directly by current
+		 * process.
+		 */
+		if (arrlist_size(cmd_list) == 1) {
+			builtin_result = call_builtin(
+								(PARSED_CMD *)arrlist_get(cmd_list, 0), 
+								STDIN_FILENO, STDOUT_FILENO);
+			if (builtin_result != -1) {
+				env_question = builtin_result;
+				continue;
+			}
+		}
 		
 		if ((pid = fork()) == -1)
 			perror_exit("fork error");
@@ -213,14 +230,18 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out)
 	read_fd = -1;
 	write_fd = -1;
 	
+	/* Deal with redirection based on pipe */
 	if (fd_in != STDIN_FILENO)
 		if (dup2(fd_in, STDIN_FILENO) == -1)
 			perror_exit("dup2 STDIN_FILENO error");
-	
 	if (fd_out != STDOUT_FILENO)
 		if (dup2(fd_out, STDOUT_FILENO) == -1)
 			perror_exit("dup2 STDOUT_FILENO error");
 	
+	/* 
+	 * If subcommand specify redirection like '<', '>', '>>',
+	 * it will override the redirection by pipe.
+	 */
 	redlist = parsed->redirect_list;
 	for (i = 0; i < arrlist_size(redlist); i++) {
 		red = (REDIRECT *)arrlist_get(redlist, i);
