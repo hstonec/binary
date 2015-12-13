@@ -91,8 +91,10 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 					}
 					subredir = creat_redirect();
 					tmpredir_len = getfilename(subredir, subcmd, &j);
-					if (tmpredir_len == 0)
+					if (tmpredir_len == 0){
+						fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", progname, c);
 						return SYNTAX_ERR;
+					}
 					else{
 						arrlist_add(p_cmd->redirect_list, subredir);
 					}
@@ -119,14 +121,16 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 	int i;
 	char c;
 	int bg = 0;
-
+	char *progname = getprogname();
 	JSTRING *tmp_cmd = jstr_create("");
 	for (i = 0; i < jstr_length(input_cmd); i++)
 	{
 		c = jstr_charat(input_cmd, i);
 		if (c == '|'){
-			if (jstr_length(tmp_cmd) == 0)
+			if (jstr_length(tmp_cmd) == 0){
+				fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", progname, c);
 				return SYNTAX_ERR;
+			}
 			else{
 				arrlist_add(tmp_list, tmp_cmd);
 			}
@@ -134,8 +138,10 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 			continue;
 		}
 		if (c == '&'){
-			if (jstr_length(tmp_cmd) == 0)
+			if (jstr_length(tmp_cmd) == 0){
+				fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", progname, c);
 				return SYNTAX_ERR;
+			}
 			else{
 				arrlist_add(tmp_list, tmp_cmd);
 				if (!bg)
