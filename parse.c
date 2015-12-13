@@ -95,7 +95,6 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 						return SYNTAX_ERR;
 					else{
 						arrlist_add(p_cmd->redirect_list, subredir);
-						i += tmpredir_len;
 					}
 				}
 				continue;
@@ -163,6 +162,7 @@ int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index)
 {
 	int i = 0;
 	int ifredir = 0;
+	int count_space = 0;
 	subredir->filename = jstr_create("");
 	char c;
 	for (i = *cur_index; i < jstr_length(subcmd); i++)
@@ -203,22 +203,24 @@ int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index)
 			}
 		}
 		if (isspace(c)){
-			if (jstr_length(subredir->filename) == 0)
+			if (jstr_length(subredir->filename) == 0){
+				count_space++;
 				continue;
+			}
 			else{
 				if (subredir->type == REDIR_STDAPPEND)
-					*cur_index = *cur_index + jstr_length(subredir->filename) + 1;
+					*cur_index = *cur_index + jstr_length(subredir->filename) + count_space + 1;
 				else
-					*cur_index += jstr_length(subredir->filename);
+					*cur_index = *cur_index + jstr_length(subredir->filename) + count_space;
 				return jstr_length(subredir->filename);
 			}
 		}
 		jstr_append(subredir->filename, c);
 	}
 	if (subredir->type == REDIR_STDAPPEND)
-		*cur_index = *cur_index + jstr_length(subredir->filename) + 1;
+		*cur_index = *cur_index + jstr_length(subredir->filename) + count_space + 1;
 	else
-		*cur_index += jstr_length(subredir->filename);
+		*cur_index = *cur_index + jstr_length(subredir->filename) + count_space;
 	if (jstr_length(subredir->filename) == 0)
 		return 0;
 	else
