@@ -120,6 +120,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 	int i;
 	char c;
 	int bg = 0;
+	int ifpipe = 0;
 	JSTRING *tmp_cmd = jstr_create("");
 	for (i = 0; i < jstr_length(input_cmd); i++)
 	{
@@ -130,6 +131,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 				return SYNTAX_ERR;
 			}
 			else{
+				ifpipe = 1;
 				arrlist_add(tmp_list, tmp_cmd);
 			}
 			tmp_cmd = jstr_create("");
@@ -156,6 +158,10 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 	}
 	if (jstr_length(tmp_cmd) > 0){
 		arrlist_add(tmp_list, tmp_cmd);
+	}
+	else if (ifpipe){
+		fprintf(stderr, "%s: syntax error near unexpected token '|'\n", getprogname());
+		return SYNTAX_ERR;
 	}
 	*ifbg = bg;
 	return 0;
