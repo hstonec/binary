@@ -1,8 +1,6 @@
 #ifndef _SISH_H_
 #define _SISH_H_
 
-#define SISH_PROMPT "sish$ "
-
 /* 
  * If any error occurred before the execution
  * of the command, the status code of sish

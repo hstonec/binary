@@ -93,7 +93,8 @@ sish_run(struct sishopt *ssopt)
 		if (arrlist_size(cmd_list) == 1) {
 			builtin_result = call_builtin(
 								(PARSED_CMD *)arrlist_get(cmd_list, 0), 
-								STDIN_FILENO, STDOUT_FILENO);
+								STDIN_FILENO, STDOUT_FILENO,
+								env_dollar, env_question);
 			if (builtin_result != -1) {
 				env_question = builtin_result;
 				continue;
@@ -226,6 +227,18 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out)
 	int read_fd, write_fd, open_flags;
 	char **argv, **ite;
 	JSTRING *opt_str;
+	int builtin_result;
+	extern pid_t env_dollar;
+	extern int env_question;
+	
+	
+	/* Try to match the command with builtin function */
+	builtin_result = call_builtin(
+						parsed, 
+						fd_in, fd_out,
+						env_dollar, env_question);
+	if (builtin_result != -1)
+		exit(builtin_result);
 	
 	read_fd = -1;
 	write_fd = -1;
@@ -307,9 +320,21 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out)
 static void
 print_prompt()
 {
-	(void)fprintf(stdout, SISH_PROMPT);
+	char *cwd;
+	
+	(void)fprintf(stdout, "sish");
+	
+	cwd = getcwd(NULL, 0);
+	if (cwd != NULL) {
+		(void)fprintf(stdout, ":%s", cwd);
+		free(cwd);
+	}
+	
+	(void)fprintf(stdout, "$ ");
+	
 	if (fflush(stdout) == EOF)
 		perror_exit("flush stdout error");
+	
 }
 
 /*
