@@ -121,6 +121,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 	char c;
 	int bg = 0;
 	int ifpipe = 0;
+	int bgflag = 0;
 	JSTRING *tmp_cmd = jstr_create("");
 	for (i = 0; i < jstr_length(input_cmd); i++)
 	{
@@ -132,6 +133,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 			}
 			else{
 				ifpipe = 1;
+				bgflag = 0;
 				arrlist_add(tmp_list, tmp_cmd);
 			}
 			tmp_cmd = jstr_create("");
@@ -143,6 +145,8 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 				return SYNTAX_ERR;
 			}
 			else{
+				bgflag = 1;
+				ifpipe = 0;
 				arrlist_add(tmp_list, tmp_cmd);
 				if (!bg)
 					bg = 1;
@@ -159,8 +163,8 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 	if (jstr_length(tmp_cmd) > 0){
 		arrlist_add(tmp_list, tmp_cmd);
 	}
-	else if (ifpipe){
-		fprintf(stderr, "%s: syntax error near unexpected token '|'\n", getprogname());
+	else if (ifpipe&&!bgflag){
+		fprintf(stderr, "%s: syntax error near unexpected token '|2'\n", getprogname());
 		return SYNTAX_ERR;
 	}
 	*ifbg = bg;
