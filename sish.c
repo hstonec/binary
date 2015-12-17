@@ -12,7 +12,6 @@
 #include "jstring.h"
 #include "arraylist.h"
 #include "macros.h"
-#include "func.h"
 #include "sish.h"
 #include "parse.h"
 #include "builtin.h"
@@ -26,7 +25,6 @@ do { \
 	return; \
 } while(0)
 
-static void exec_command(ARRAYLIST *, BOOL, BOOL);
 static void do_exec(PARSED_CMD *, int, int, BOOL);
 static void print_prompt();
 static void print_trace(PARSED_CMD *);
@@ -37,22 +35,29 @@ static JSTRING *command;
 static pid_t env_dollar;
 static int env_question;
 
+void
+init_env()
+{
+	extern JSTRING *command;
+	extern pid_t env_dollar;
+	extern int env_question;
+	
+	command = jstr_create("");
+	env_dollar = getpid();
+	env_question = 0;
+}
+
 int 
 sish_run(struct sishopt *ssopt)
 {
 	char c;
 	extern JSTRING *command;
-	extern pid_t env_dollar;
 	extern int env_question;
 	int parse_status;
 	ARRAYLIST *cmd_list;
 	BOOL run_bg;
 	
-	command = jstr_create("");
-	env_dollar = getpid();
-	env_question = 0;
 	cmd_list = arrlist_create();
-	
 	
 	if (signal(SIGINT, sigint_handler) == SIG_ERR)
 		perror_exit("register SIGINT handler error");
@@ -83,10 +88,11 @@ sish_run(struct sishopt *ssopt)
 		exec_command(cmd_list, run_bg, ssopt->x_flag);
 	}
 	
+	arrlist_free(cmd_list);
 	return SISH_EXIT_SUCCESS;
 }
 
-static void
+void
 exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 {
 	size_t cmd_num, i;
@@ -451,4 +457,12 @@ sigchld_handler(int signum)
 			return;
 		}
 	}
+}
+
+void
+perror_exit(char *message)
+{
+	(void)fprintf(stderr, "%s: ", getprogname());
+	perror(message);
+	exit(SISH_EXIT_FAILURE);
 }

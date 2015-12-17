@@ -15,6 +15,9 @@ struct sishopt {
 	BOOL x_flag;
 };
 
+void init_env();
 int sish_run(struct sishopt *);
+void exec_command(ARRAYLIST *, BOOL, BOOL);
+void perror_exit(char *);
 
 #endif /* !_SISH_H_ */

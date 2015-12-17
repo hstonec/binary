@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 #include "jstring.h"
+#include "arraylist.h"
 #include "macros.h"
-#include "func.h"
 #include "sish.h"
 
 int main(int, char **);
@@ -79,8 +79,11 @@ main(int argc, char *argv[])
 	if (ssopt.c_flag == TRUE) {
 		printf("run once: %s\n", jstr_cstr(ssopt.command));
 		return EXIT_SUCCESS;
-	} else
+	} else {
+		init_env();
 		return sish_run(&ssopt);
+	}
+		
 }
 
 /*
