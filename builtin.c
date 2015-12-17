@@ -25,6 +25,21 @@ static int sish_exit();
 
 static int write2fd(int, char *, size_t);
 
+BOOL is_builtin(PARSED_CMD *parsed)
+{
+	JSTRING *cmd;
+	
+	cmd = parsed->command;
+	if (jstr_equals(cmd, "cd") == 0)
+		return TRUE;
+	else if (jstr_equals(cmd, "echo") == 0)
+		return TRUE;
+	else if (jstr_equals(cmd, "exit") == 0)
+		return TRUE;
+	else
+		return FALSE;
+}
+
 int call_builtin(PARSED_CMD *parsed, int fd_in, int fd_out,
                  pid_t env_dollar, int env_question)
 {
