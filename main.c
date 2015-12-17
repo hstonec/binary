@@ -14,6 +14,7 @@
 #include "jstring.h"
 #include "arraylist.h"
 #include "macros.h"
+#include "parse.h"
 #include "sish.h"
 
 int main(int, char **);
@@ -71,19 +72,8 @@ main(int argc, char *argv[])
 	if (setenv("SHELL", jstr_cstr(shell_path), TRUE) == -1)
 		perror_exit("set variable SHELL error");
 	
-	/* 
-	 * If -c is set, sish will run as a command interpreter which 
-	 * parses and executes the command, then exit; or, it will run 
-	 * as a shell which reads command from stdin.
-	 */
-	if (ssopt.c_flag == TRUE) {
-		printf("run once: %s\n", jstr_cstr(ssopt.command));
-		return EXIT_SUCCESS;
-	} else {
-		init_env();
-		return sish_run(&ssopt);
-	}
-		
+	
+	return sish_run(&ssopt);
 }
 
 /*

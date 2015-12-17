@@ -25,6 +25,7 @@ do { \
 	return; \
 } while(0)
 
+static void exec_command(ARRAYLIST *, BOOL, BOOL);
 static void do_exec(PARSED_CMD *, int, int, BOOL);
 static void print_prompt();
 static void print_trace(PARSED_CMD *);
@@ -35,27 +36,20 @@ static JSTRING *command;
 static pid_t env_dollar;
 static int env_question;
 
-void
-init_env()
-{
-	extern JSTRING *command;
-	extern pid_t env_dollar;
-	extern int env_question;
-	
-	command = jstr_create("");
-	env_dollar = getpid();
-	env_question = 0;
-}
-
 int 
 sish_run(struct sishopt *ssopt)
 {
 	char c;
 	extern JSTRING *command;
+	extern pid_t env_dollar;
 	extern int env_question;
 	int parse_status;
 	ARRAYLIST *cmd_list;
 	BOOL run_bg;
+	
+	command = jstr_create("");
+	env_dollar = getpid();
+	env_question = SISH_EXIT_SUCCESS;
 	
 	cmd_list = arrlist_create();
 	
@@ -68,31 +62,46 @@ sish_run(struct sishopt *ssopt)
 	if (signal(SIGTTOU, SIG_IGN) == SIG_ERR)
 		perror_exit("ignore SIGTTOU signal error");
 	
-	
-	for (;;) {
-		/* Clear what have been read before printing prompt */
-		jstr_trunc(command, 0, 0);
-		free_pcmd(cmd_list);
-		print_prompt();
-
-		/* Read one line command from stdin */
-		while ((c = (char)getc(stdin)) != '\n')
-			jstr_append(command, c);
+	/* 
+	 * If -c is set, sish will run as a command interpreter which 
+	 * parses and executes the command, then exit; or, it will run 
+	 * as a shell which reads command from stdin.
+	 */
+	if (ssopt->c_flag == TRUE) {
 		/* Parse the command, if error occurs, set %?. */
-		parse_status = parse_command(command, cmd_list, &run_bg);
+		parse_status = parse_command(ssopt->command, cmd_list, &run_bg);
 		if (parse_status != 0) {
 			env_question = parse_status;
-			continue;
+			return env_question;
 		}
-		
 		exec_command(cmd_list, run_bg, ssopt->x_flag);
+	} else {
+		for (;;) {
+			/* Clear what have been read before printing prompt */
+			jstr_trunc(command, 0, 0);
+			free_pcmd(cmd_list);
+			print_prompt();
+
+			/* Read one line command from stdin */
+			while ((c = (char)getc(stdin)) != '\n')
+				jstr_append(command, c);
+			/* Parse the command, if error occurs, set %?. */
+			parse_status = parse_command(command, cmd_list, &run_bg);
+			if (parse_status != 0) {
+				env_question = parse_status;
+				continue;
+			}
+			
+			exec_command(cmd_list, run_bg, ssopt->x_flag);
+		}
 	}
 	
+	jstr_free(command);
 	arrlist_free(cmd_list);
-	return SISH_EXIT_SUCCESS;
+	return env_question;
 }
 
-void
+static void
 exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 {
 	size_t cmd_num, i;
