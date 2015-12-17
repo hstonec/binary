@@ -70,7 +70,7 @@ sish_cd(PARSED_CMD *parsed)
 	if (oldcwd == NULL) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: getcwd: %s\n",
+			"-%s: getcwd: %s\n",
 			getprogname(),
 			strerror(errnum));
 		
@@ -88,7 +88,7 @@ sish_cd(PARSED_CMD *parsed)
 		errnum = errno;
 		if (pw == NULL) {
 			(void)fprintf(stderr,
-				"%s: cd: %s\n",
+				"-%s: cd: %s\n",
 				getprogname(),
 				strerror(errnum));
 			
@@ -104,7 +104,7 @@ sish_cd(PARSED_CMD *parsed)
 	if (chdir(dir) == -1) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: cd: %s: %s\n",
+			"-%s: cd: %s: %s\n",
 			getprogname(),
 			dir,
 			strerror(errnum));
@@ -118,7 +118,7 @@ sish_cd(PARSED_CMD *parsed)
 	if (cwd == NULL) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: getcwd: %s\n",
+			"-%s: getcwd: %s\n",
 			getprogname(),
 			strerror(errnum));
 		
@@ -128,7 +128,7 @@ sish_cd(PARSED_CMD *parsed)
 	if (setenv("PWD", cwd, TRUE) == -1) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: set PWD error: %s\n",
+			"-%s: set PWD error: %s\n",
 			getprogname(),
 			strerror(errnum));
 		
@@ -139,7 +139,7 @@ sish_cd(PARSED_CMD *parsed)
 	if (setenv("OLDPWD", oldcwd, TRUE) == -1) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: set OLDPWD error: %s\n",
+			"-%s: set OLDPWD error: %s\n",
 			getprogname(),
 			strerror(errnum));
 		
@@ -194,7 +194,7 @@ sish_echo(PARSED_CMD *parsed, int fd_out,
 			if (write_fd == -1) {
 				errnum = errno;
 				(void)fprintf(stderr,
-					"%s: could not open '%s': %s\n",
+					"-%s: could not open '%s': %s\n",
 					getprogname(),
 					jstr_cstr(red->filename),
 					strerror(errnum));
@@ -265,7 +265,7 @@ write2fd(int fd, char *buf, size_t len)
 	if (count == -1) {
 		errnum = errno;
 		(void)fprintf(stderr,
-			"%s: echo: %s\n",
+			"-%s: echo: %s\n",
 			getprogname(),
 			strerror(errnum));
 		return errnum;

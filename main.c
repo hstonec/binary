@@ -61,7 +61,7 @@ main(int argc, char *argv[])
 	/* If passed any argument, just print out error message and exit */
 	if (argc > 0) {
 		(void)fprintf(stderr,
-		  "%s: too many operands\n",
+		  "-%s: too many operands\n",
 		  getprogname());
 		usage();
 		/* NOTREACHED */

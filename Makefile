@@ -1,6 +1,6 @@
 CC=cc
 PROG=sish
-CFLAGS=-g -Wall
+CFLAGS=-Wall
 
 all: ${PROG}
 

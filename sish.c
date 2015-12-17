@@ -20,7 +20,7 @@
 do { \
 	env_question = SISH_EXIT_FAILURE;\
 	(void)tcsetpgrp(STDERR_FILENO, getpgrp()); \
-	(void)fprintf(stderr, "%s: ", getprogname()); \
+	(void)fprintf(stderr, "-%s: ", getprogname()); \
 	perror(message); \
 	return; \
 } while(0)
@@ -349,7 +349,7 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 			
 		} else {
 			(void)fprintf(stderr,
-				"%s: wrong redirect type\n",
+				"-%s: wrong redirect type\n",
 				getprogname());
 			exit(SISH_EXIT_FAILURE);
 		}
@@ -460,7 +460,7 @@ sigchld_handler(int signum)
 		return;
 	else {
 		if (waitpid(infop.si_pid, &exit_status, 0) == -1) {
-			(void)fprintf(stderr, "%s: ", getprogname());
+			(void)fprintf(stderr, "-%s: ", getprogname());
 			perror("sigchld waitpid error");
 			(void)tcsetpgrp(STDERR_FILENO, getpgrp());
 			return;
@@ -471,7 +471,7 @@ sigchld_handler(int signum)
 void
 perror_exit(char *message)
 {
-	(void)fprintf(stderr, "%s: ", getprogname());
+	(void)fprintf(stderr, "-%s: ", getprogname());
 	perror(message);
 	exit(SISH_EXIT_FAILURE);
 }

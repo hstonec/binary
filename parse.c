@@ -75,7 +75,7 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 					subredir = creat_redirect();
 					tmpredir_len = getfilename(subredir, subcmd, &j);
 					if (tmpredir_len == 0){
-						fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", getprogname(), c);
+						fprintf(stderr, "-%s: syntax error near unexpected token '%c'\n", getprogname(), c);
 						return SYNTAX_ERR;
 					}
 					else{
@@ -91,7 +91,7 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 					subredir = creat_redirect();
 					tmpredir_len = getfilename(subredir, subcmd, &j);
 					if (tmpredir_len == 0){
-						fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", getprogname(), c);
+						fprintf(stderr, "-%s: syntax error near unexpected token '%c'\n", getprogname(), c);
 						return SYNTAX_ERR;
 					}
 					else{
@@ -128,7 +128,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 		c = jstr_charat(input_cmd, i);
 		if (c == '|'){
 			if (jstr_length(tmp_cmd) == 0){
-				fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", getprogname(), c);
+				fprintf(stderr, "-%s: syntax error near unexpected token '%c'\n", getprogname(), c);
 				return SYNTAX_ERR;
 			}
 			else{
@@ -141,7 +141,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 		}
 		if (c == '&'){
 			if (jstr_length(tmp_cmd) == 0){
-				fprintf(stderr, "%s: syntax error near unexpected token '%c'\n", getprogname(), c);
+				fprintf(stderr, "-%s: syntax error near unexpected token '%c'\n", getprogname(), c);
 				return SYNTAX_ERR;
 			}
 			else{
@@ -164,7 +164,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 		arrlist_add(tmp_list, tmp_cmd);
 	}
 	else if (ifpipe&&!bgflag){
-		fprintf(stderr, "%s: syntax error near unexpected token '|2'\n", getprogname());
+		fprintf(stderr, "-%s: syntax error near unexpected token '|2'\n", getprogname());
 		return SYNTAX_ERR;
 	}
 	*ifbg = bg;
