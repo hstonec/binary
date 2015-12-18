@@ -18,6 +18,6 @@ typedef struct parsed_cmd{
 	ARRAYLIST *redirect_list; /* redirection info in this cmd (redirect)*/
 } PARSED_CMD;
 
-int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg);
+int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg, JSTRING *err_no, JSTRING *cur_pid);
 void free_pcmd(ARRAYLIST *cmd_list);
 #endif
