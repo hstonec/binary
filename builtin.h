@@ -7,6 +7,6 @@ BOOL is_builtin(PARSED_CMD *);
  *         0: success
  *		  >0: error
  */
-int call_builtin(PARSED_CMD *, int, int, pid_t, int);
+int call_builtin(PARSED_CMD *, int, int);
 
 #endif /* !_BUILTIN_H_ */

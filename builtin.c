@@ -1,3 +1,14 @@
+/*
+ * This program include the built in functions that are
+ * supported by sish. Importantly, there are only two
+ * functions, is_builtin() and call_builtin(), which are 
+ * exposed to the user. This is an application of Factory 
+ * Pattern which can separate invocation code and 
+ * implementation code. For built in functions, this pattern
+ * improves expansibility because you don't need to know
+ * the concrete function name or worry about adding a new
+ * function to sish.
+ */
 #include <bsd/stdlib.h>
 
 #include <sys/stat.h>
@@ -20,11 +31,15 @@
 #include "builtin.h"
 
 static int sish_cd(PARSED_CMD *);
-static int sish_echo(PARSED_CMD *, int, pid_t, int);
+static int sish_echo(PARSED_CMD *, int);
 static int sish_exit();
 
 static int write2fd(int, char *, size_t);
 
+/*
+ * This function check if passed command is a built in
+ * function.
+ */
 BOOL is_builtin(PARSED_CMD *parsed)
 {
 	JSTRING *cmd;
@@ -40,8 +55,12 @@ BOOL is_builtin(PARSED_CMD *parsed)
 		return FALSE;
 }
 
-int call_builtin(PARSED_CMD *parsed, int fd_in, int fd_out,
-                 pid_t env_dollar, int env_question)
+/*
+ * This function calls the actual built in implementation
+ * function based on the passed command; or, return -1
+ * if doesn't match any built in function.
+ */
+int call_builtin(PARSED_CMD *parsed, int fd_in, int fd_out)
 {
 	JSTRING *cmd;
 	
@@ -49,13 +68,23 @@ int call_builtin(PARSED_CMD *parsed, int fd_in, int fd_out,
 	if (jstr_equals(cmd, "cd") == 0)
 		return sish_cd(parsed);
 	else if (jstr_equals(cmd, "echo") == 0)
-		return sish_echo(parsed, fd_out, env_dollar, env_question);
+		return sish_echo(parsed, fd_out);
 	else if (jstr_equals(cmd, "exit") == 0)
 		return sish_exit();
 	else
 		return -1;
 }
 
+/*
+ * This function implements 'cd' command. Actually, this function
+ * just invokes chdir(2) to change the current working directory
+ * of current process. So, if you don't call it in the process
+ * of shell itself, it won't affect the shell's environment.
+ *
+ * In addition, this function maintains two environment variables
+ * PWD and OLDPWD, each time it changes the current working directory
+ * it will also modify these two variables.
+ */
 static int 
 sish_cd(PARSED_CMD *parsed)
 {
@@ -153,9 +182,13 @@ sish_cd(PARSED_CMD *parsed)
 	return SISH_EXIT_SUCCESS;
 }
 
+/*
+ * This function implements 'echo' command. 'echo' accepts
+ * multiple arguments and print them out to stdout ending
+ * with a '\n'.
+ */
 static int
-sish_echo(PARSED_CMD *parsed, int fd_out,
-	      pid_t env_dollar, int env_question)
+sish_echo(PARSED_CMD *parsed, int fd_out)
 {
 	size_t i;
 	ARRAYLIST *redlist, *optlist;
@@ -163,8 +196,6 @@ sish_echo(PARSED_CMD *parsed, int fd_out,
 	int write_fd, open_flags, write_result;
 	int errnum;
 	JSTRING *opt_str;
-	char dollar[20];
-	char question[20];
 	JSTRING *output;
 
 	/* 
@@ -206,20 +237,11 @@ sish_echo(PARSED_CMD *parsed, int fd_out,
 		}
 	}
 	
-	/* Transform $$ and $? to character string */
-	(void)sprintf(dollar, "%d", env_dollar);
-	(void)sprintf(question, "%d", env_question);
-	
 	output = jstr_create("");
 	optlist = parsed->opt;
 	for (i = 1; i < arrlist_size(optlist); i++) {
 		opt_str = (JSTRING *)arrlist_get(optlist, i);
-		if (jstr_equals(opt_str, "$$") == 0)
-			jstr_concat(output, dollar);
-		else if (jstr_equals(opt_str, "$?") == 0)
-			jstr_concat(output, question);
-		else
-			jstr_concat(output, jstr_cstr(opt_str));
+		jstr_concat(output, jstr_cstr(opt_str));
 		
 		if (i != arrlist_size(optlist) - 1)
 			jstr_append(output, ' ');
@@ -242,6 +264,10 @@ sish_echo(PARSED_CMD *parsed, int fd_out,
 	return SISH_EXIT_SUCCESS;
 }
 
+/*
+ * This function implements 'exit' command. It just calls exit(3)
+ * to exit from current process.
+ */
 static int
 sish_exit()
 {

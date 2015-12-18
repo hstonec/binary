@@ -25,32 +25,34 @@ do { \
 	return; \
 } while(0)
 
+static void init_env();
+static void free_env();
 static void exec_command(ARRAYLIST *, BOOL, BOOL);
 static void do_exec(PARSED_CMD *, int, int, BOOL);
 static void print_prompt();
 static void print_trace(PARSED_CMD *);
 static void sigint_handler(int);
 static void sigchld_handler(int);
+static void itojstr(int i, JSTRING *jstr);
 
 static JSTRING *command;
 static pid_t env_dollar;
 static int env_question;
+static JSTRING *env_dollar_str;
+static JSTRING *env_question_str;
 
 int 
 sish_run(struct sishopt *ssopt)
 {
 	char c;
 	extern JSTRING *command;
-	extern pid_t env_dollar;
 	extern int env_question;
+	
 	int parse_status;
 	ARRAYLIST *cmd_list;
 	BOOL run_bg;
 	
-	command = jstr_create("");
-	env_dollar = getpid();
-	env_question = SISH_EXIT_SUCCESS;
-	
+	init_env();
 	cmd_list = arrlist_create();
 	
 	if (signal(SIGINT, sigint_handler) == SIG_ERR)
@@ -96,9 +98,46 @@ sish_run(struct sishopt *ssopt)
 		}
 	}
 	
-	jstr_free(command);
+	free_env();
 	arrlist_free(cmd_list);
 	return env_question;
+}
+
+static void
+init_env()
+{
+	extern JSTRING *command;
+	extern pid_t env_dollar;
+	extern int env_question;
+	extern JSTRING *env_dollar_str;
+	extern JSTRING *env_question_str;
+	char dollar[20];
+	char question[20];
+	
+	command = jstr_create("");
+	env_dollar = getpid();
+	env_question = SISH_EXIT_SUCCESS;
+	env_dollar_str = jstr_create("");
+	env_question_str = jstr_create("");
+	
+	/* Transform $$ and $? to character string */
+	(void)sprintf(dollar, "%d", env_dollar);
+	(void)sprintf(question, "%d", env_question);
+	
+	jstr_concat(env_dollar_str, dollar);
+	jstr_concat(env_question_str, question);
+}
+
+static void 
+free_env()
+{
+	extern JSTRING *command;
+	extern JSTRING *env_dollar_str;
+	extern JSTRING *env_question_str;
+	
+	jstr_free(command);
+	jstr_free(env_dollar_str);
+	jstr_free(env_dollar_str);
 }
 
 static void
@@ -134,10 +173,8 @@ exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 		if (trace_cmd == TRUE && is_builtin(parsed) == TRUE)
 			print_trace(parsed);
 		
-		builtin_result = call_builtin(
-							parsed, 
-							STDIN_FILENO, STDOUT_FILENO,
-							env_dollar, env_question);
+		builtin_result = call_builtin(parsed, 
+							STDIN_FILENO, STDOUT_FILENO);
 		if (builtin_result != -1) {
 			env_question = builtin_result;
 			return;
@@ -287,10 +324,7 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 	if (trace_command == TRUE && is_builtin(parsed) == TRUE)
 		print_trace(parsed);
 	/* Try to match the command with builtin function */
-	builtin_result = call_builtin(
-						parsed, 
-						fd_in, fd_out,
-						env_dollar, env_question);
+	builtin_result = call_builtin(parsed, fd_in, fd_out);
 	if (builtin_result != -1)
 		exit(builtin_result);
 	
@@ -466,6 +500,16 @@ sigchld_handler(int signum)
 			return;
 		}
 	}
+}
+
+static void
+itojstr(int i, JSTRING *jstr)
+{
+	char ic[20];
+	
+	(void)sprintf(ic, "%d", i);
+	jstr_trunc(jstr, 0, 0);
+	jstr_concat(jstr, ic);
 }
 
 void
