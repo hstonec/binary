@@ -11,29 +11,92 @@ Group Information
   Shicong Huang    shuang14
   Qiushi Wang      qwang29
   
+Compilation Method
+  
+  In linux lab, use the command below to compile the poject:
+    make -f Makefile.lnx
+  
+  In AWS Netbsd, use the command below to compile the project:
+    make -f Makefile.bsd
 
+Project Design
 
-PARSE
+  We use the modular design thought to divide the project into five 
+  modules, namely Fundamental Module, Main Module, Parse Module,
+  Shell Module and Builtin Module. 
+  
+  Fundamental Module inherited from sws project. Shicong Huang finished 
+  Main Module, Shell Module and Builtin Module. Qiushi Wang finished
+  Parse Module.
 
-This part of program processes the input from stdin. After the main
-program gets the command line, it will call parse_command(3) to
-process the command into a structure. This structure contains a string
-of the command, a list of options and a list of redirection
-information. 
+- Fundamental Module
 
-Function parse_command(3) receives one line of command. It will
-separate the command into subcommands using "|" and "&". And after
-that, the function will store each subcommand into a structure
-called "parsed_cmd" (SEE parse.h). This structure contains the
-information for one time execution. This function will pull all
-structures into a list and set a flag to determine if do background or
-not.
+  Fundamental Module includes two library function which are JSTRING
+  and ARRAYLIST. JSTRING provides a String object with a series of 
+  operation functions on it. ARRAYLIST is a simple implementation
+  of ArrayList in Java. Based on the analysis of sish project, these two 
+  libraries would be very useful to simplify the parseing process of 
+  command. So, we keep it in this project.
 
-When separating subcommands, the program will check if there is a
-command following the pipe "|". If there is no command after that, it
-will return an error. Because the command is separated by "|" and "&",
-if there is no command between "|" and "&", it will return an error
-too.
+- Main Module
+
+  This module is implemented in main.c file. It includes entrance
+  function main() of the whole project. This function parses all 
+  command-line options and sets all flags, do the basic verification
+  and set specific environment variable for shell, then invokes sish_run()
+  function to start the shell.
+
+- Shell Module
+
+  This module is the main part of sish. It includes the program to
+  execute the command. When sish_run() is invoked, it reads command 
+  from stdin or struct sishopt, calls parse_command() to parse it, and
+  calls exec_command() to execute the command.
+  
+  exec_command() implements job control for sish. exec_command() will fork
+  a process for each subcommand and set pipe line appropriately. If
+  this command is running in foreground, the foreground process group
+  id will be changed to this process id. Each background command will
+  run in its own process group, and won't be affected by SIGINT signal.
+    
+  Each time sish process receives SIGCHLD, the signal handler will check
+  if its a process belongs to foreground process group. If so, it won't
+  call waitpid(2) to reap this process. So, exec_command() could block
+  until all foreground processes have been reaped.
+  
+- Builtin Module
+  
+  Builtin Module contains the built in functions of sish. At present,
+  it implements 'cd', 'echo' and 'exit' commands. All these three
+  commands are exposed by call_builtin() function. This function
+  accepts three arguments which are command, reading file descriptor
+  and writing file descriptor. This is an application of Factory Pattern 
+  which can separate invocation code and implementation code. For built 
+  in functions, this pattern improves expansibility because you don't 
+  need to know the concrete function name or worry about adding a new
+  function to sish.
+
+- Parse Module
+
+  This part of program processes the input from stdin. After the main
+  program gets the command line, it will call parse_command(3) to
+  process the command into a structure. This structure contains a string
+  of the command, a list of options and a list of redirection
+  information. 
+
+  Function parse_command(3) receives one line of command. It will
+  separate the command into subcommands using "|" and "&". And after
+  that, the function will store each subcommand into a structure
+  called "parsed_cmd" (SEE parse.h). This structure contains the
+  information for one time execution. This function will pull all
+  structures into a list and set a flag to determine if do background or
+  not.
+
+  When separating subcommands, the program will check if there is a
+  command following the pipe "|". If there is no command after that, it
+  will return an error. Because the command is separated by "|" and "&",
+  if there is no command between "|" and "&", it will return an error
+  too.
 
 Test cases
 
@@ -135,20 +198,3 @@ Test cases
 	20028^C
 	sish$ ps -ef | grep infi
 	shuang14 20066 19667  0 11:28 pts/1    00:00:00 grep infi
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
