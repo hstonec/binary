@@ -152,7 +152,7 @@ free_env()
 	
 	jstr_free(command);
 	jstr_free(env_dollar_str);
-	jstr_free(env_dollar_str);
+	jstr_free(env_question_str);
 }
 
 static void
