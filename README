@@ -1,5 +1,17 @@
-CS631 final assignment
-shuang14 push test
+CS631 Final Assignment
+======================
+
+Group Information
+  
+  Group Name: Binary
+  
+  Group Member:
+  Name             Stevens ID
+  
+  Shicong Huang    shuang14
+  Qiushi Wang      qwang29
+  
+
 
 PARSE
 
@@ -22,3 +34,121 @@ command following the pipe "|". If there is no command after that, it
 will return an error. Because the command is separated by "|" and "&",
 if there is no command between "|" and "&", it will return an error
 too.
+
+Test cases
+
+- Shell startup, options parsing
+
+    $ sish -ab
+	sish: invalid option -- 'a'
+	usage: sish [-x] [-c command]
+	$ sish -c
+	sish: option requires an argument -- 'c'
+	usage: sish [-x] [-c command]
+
+- Builtins
+
+	1) cd
+	
+    sish$ pwd
+    /home/shuang14/homework/shtest
+    sish$ cd &
+    sish$ pwd
+    /home/shuang14/homework/shtest
+	sish$ ls -l | cd ..
+	sish$ pwd
+	/home/shuang14/homework/shtest
+	
+	2) exit
+	
+	sish$ exit &
+	sish$ exit | echo foo
+	foo
+	sish$
+	
+	3) echo
+	
+	sish$ echo $$
+	24705
+	sish$ echo abc$$abc
+	abc24705abc
+	sish$ echo abc >def
+	sish$ cat def
+    abc
+
+- I/O Redirection
+
+    sish$ ls
+	sish$ echo abc >def >fgh
+	sish$ ls -l
+	total 1
+    -rw-------+ 1 shuang14 student 0 Dec 18 01:21 def
+    -rw-------+ 1 shuang14 student 4 Dec 18 01:21 fgh
+	sish$ cat <fgh >>ijk
+	sish$ ls -l
+	total 2
+    -rw-------+ 1 shuang14 student 0 Dec 18 01:21 def
+    -rw-------+ 1 shuang14 student 4 Dec 18 01:21 fgh
+    -rw-------+ 1 shuang14 student 4 Dec 18 11:11 ijk
+	sish$ cat <nowhere <fgh
+    -sish: open 'nowhere' error: No such file or directory
+	sish$ 
+
+- Pipeline
+
+    sish$ |
+    -sish: syntax error near unexpected token '|'
+	sish$ cat |
+    -sish: syntax error near unexpected token '|'
+	sish$ | cat
+    -sish: syntax error near unexpected token '|'
+	sish$ ls -l || cat
+    -sish: syntax error near unexpected token '|'
+
+- Backgrounding of processes
+
+    sish$ cat infi.c 
+    #include <unistd.h>
+    #include <stdio.h>
+
+    int
+    main(int argc, char *argv[])
+    {
+        for (;;) {
+            sleep(5);
+            printf("%d\n", getpid());
+        }
+        return 0;
+    }
+	sish$ cc -Wall -o infi infi.c
+	sish$ ./infi &
+	sish$ ^C
+	sish$ 19936
+	19936
+	sish$ ps -ef | grep infi
+	shuang14 19936 19667  0 11:26 pts/1    00:00:00 ./infi
+    shuang14 19975 19667  0 11:27 pts/1    00:00:00 grep infi
+	sish$ kill 19936
+	sish$ ./infi
+	20028
+	20028
+	20028^C
+	sish$ ps -ef | grep infi
+	shuang14 20066 19667  0 11:28 pts/1    00:00:00 grep infi
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
