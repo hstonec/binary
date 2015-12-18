@@ -2,7 +2,9 @@
  * This program is the main part of sish. It implements
  * the process of executing command.
  */
-#include <bsd/stdlib.h>
+#ifdef _LINUX_
+	#include <bsd/stdlib.h>
+#endif
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -167,9 +169,11 @@ exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 	int left_pipefd[2];
 	int right_pipefd[2];
 	int fd_in, fd_out;
-	siginfo_t infop;
 	int exit_status;
-	
+#ifdef _LINUX_
+	siginfo_t infop;
+#endif
+
 	cmd_num = arrlist_size(cmd_list);
 	group_leader = -1;
 	
@@ -309,6 +313,7 @@ exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 	 * controlling process.
 	 */
 	if (run_bg == FALSE) {
+#ifdef _LINUX_
 		for (;;) {
 			if (waitid(P_PGID, group_leader, &infop, WEXITED | WNOWAIT) == -1)
 				break;
@@ -316,6 +321,16 @@ exec_command(ARRAYLIST *cmd_list, BOOL run_bg, BOOL trace_cmd)
 			if (pid != -1 && pid != 0)
 				env_question = WEXITSTATUS(exit_status);
 		}
+#endif
+#ifdef _NETBSD_
+		for (i = 0; i < cmd_num; i++) {
+			pid = waitpid(0 - group_leader, &exit_status, 0);
+			if (pid == -1)
+				break;
+			else
+				env_question = WEXITSTATUS(exit_status);
+		}
+#endif
 		(void)tcsetpgrp(STDERR_FILENO, getpgrp());
 	}
 	
@@ -509,10 +524,11 @@ sigint_handler(int signum)
 static void 
 sigchld_handler(int signum)
 {
-	pid_t child_pgid, fg_pgid;
-	siginfo_t infop;
 	int exit_status;
 	extern int env_question;
+#ifdef _LINUX_
+	siginfo_t infop;
+	pid_t child_pgid, fg_pgid;
 	
 	if (waitid(P_ALL, 0, &infop, WEXITED | WNOWAIT) == -1)
 		PERROR_RETURN("sigchld waitid error");
@@ -532,6 +548,15 @@ sigchld_handler(int signum)
 			return;
 		}
 	}
+#endif
+#ifdef _NETBSD_
+	pid_t pid;
+	
+	pid = wait(&exit_status);
+	if (pid == -1)
+		PERROR_RETURN("sigchld wait error");
+	env_question = WEXITSTATUS(exit_status);
+#endif
 }
 
 static void

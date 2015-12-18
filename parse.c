@@ -4,7 +4,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <ctype.h>
-#include <bsd/stdlib.h>
+#ifdef _LINUX_
+	#include <bsd/stdlib.h>
+#endif
 
 #include "macros.h"
 #include "arraylist.h"
@@ -50,7 +52,7 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg, JSTRING *
 		for (j = 0; j < jstr_length(subcmd); j++)
 		{
 			c = jstr_charat(subcmd, j);
-			if (isspace(c)){
+			if (isspace((int)c)){
 				if (jstr_length(p)==0)
 					continue;
 				if (iscmd){
@@ -180,7 +182,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 			tmp_cmd = jstr_create("");
 			continue;
 		}
-		if (isspace(c) && jstr_length(tmp_cmd)==0)
+		if (isspace((int)c) && jstr_length(tmp_cmd)==0)
 			continue;
 		jstr_append(tmp_cmd, c);
 	}
@@ -239,7 +241,7 @@ int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index)
 				}
 			}
 		}
-		if (isspace(c)){
+		if (isspace((int)c)){
 			if (jstr_length(subredir->filename) == 0){
 				count_space++;
 				continue;

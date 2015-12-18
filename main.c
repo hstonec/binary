@@ -1,7 +1,9 @@
 /*
  * This program implements a simple shell.
  */
-#include <bsd/stdlib.h>
+#ifdef _LINUX_
+	#include <bsd/stdlib.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
