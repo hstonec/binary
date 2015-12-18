@@ -1,2 +1,24 @@
 CS631 final assignment
 shuang14 push test
+
+PARSE
+
+This part of program processes the input from stdin. After the main
+program gets the command line, it will call parse_command(3) to
+process the command into a structure. This structure contains a string
+of the command, a list of options and a list of redirection
+information. 
+
+Function parse_command(3) receives one line of command. It will
+separate the command into subcommands using "|" and "&". And after
+that, the function will store each subcommand into a structure
+called "parsed_cmd" (SEE parse.h). This structure contains the
+information for one time execution. This function will pull all
+structures into a list and set a flag to determine if do background or
+not.
+
+When separating subcommands, the program will check if there is a
+command following the pipe "|". If there is no command after that, it
+will return an error. Because the command is separated by "|" and "&",
+if there is no command between "|" and "&", it will return an error
+too.

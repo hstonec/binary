@@ -164,7 +164,7 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 		arrlist_add(tmp_list, tmp_cmd);
 	}
 	else if (ifpipe&&!bgflag){
-		fprintf(stderr, "-%s: syntax error near unexpected token '|2'\n", getprogname());
+		fprintf(stderr, "-%s: syntax error near unexpected token '|'\n", getprogname());
 		return SYNTAX_ERR;
 	}
 	*ifbg = bg;
