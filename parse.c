@@ -16,28 +16,28 @@ REDIRECT *creat_redirect(void);
 void free_redir(REDIRECT *redir);
 int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index);
 int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list);
+void decode_command(JSTRING *input_cmd, JSTRING *decoded_cmd, JSTRING *err_no, JSTRING *cur_pid);
 
-int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
+int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg, JSTRING *err_no,JSTRING *cur_pid)
 {
-	//printf("%s\n", jstr_cstr(str_cmd));
 	int i, j;
 	char c;
 	int iscmd = 0;
 	int isopt = 0;
 	int ret;
-	// get subcmd
+	/* get subcmd */
 	ARRAYLIST *tmp_list = arrlist_create();
-	
-	ret = sep_cmd(input_cmd, ifbg, tmp_list);
+	JSTRING *decoded_cmd = jstr_create("");
+	/* transform $$ abd $? */
+	decode_command(input_cmd, decoded_cmd, err_no, cur_pid);
+	ret = sep_cmd(decoded_cmd, ifbg, tmp_list);
 	if (ret)
 		return ret;
-	// deal with opt and redirection
+	/* deal with opt and redirection */
 	JSTRING *subcmd;
 	JSTRING *p; /* pointer for operating */
 	PARSED_CMD *p_cmd;
 	REDIRECT *subredir;
-	// for printing 
-
 	int tmpredir_len = 0;
 	for (i = 0; i < arrlist_size(tmp_list); i++)
 	{
@@ -106,15 +106,39 @@ int parse_command(JSTRING *input_cmd, ARRAYLIST *cmd_list, BOOL *ifbg)
 			arrlist_add(p_cmd->opt, p);
 		arrlist_add(cmd_list, p_cmd);
 	}
-	// free tmp_list
+	/* free tmp_list */
 	for (i = 0; i < arrlist_size(tmp_list); i++)
 	{
 		jstr_free((JSTRING*)arrlist_get(tmp_list, i));
 	}
-	arrlist_free(tmp_list);	
+	arrlist_free(tmp_list);
+	jstr_free(decoded_cmd);
 	return 0;
 }
-
+/* translate $$ and $? */
+void decode_command(JSTRING *input_cmd, JSTRING *decoded_cmd, JSTRING *err_no, JSTRING *cur_pid)
+{
+	int i, j;
+	for (i = 0; i < jstr_length(input_cmd); i++)
+	{
+		if (jstr_charat(input_cmd, i) == '$'){
+			if (jstr_charat(input_cmd, i + 1) == '?'){
+				for (j = 0; j < jstr_length(err_no); j++)
+					jstr_append(decoded_cmd, jstr_charat(err_no, j));
+				i++;
+				continue;
+			}
+			else if (jstr_charat(input_cmd, i + 1) == '$'){
+				for (j = 0; j < jstr_length(cur_pid); j++)
+					jstr_append(decoded_cmd, jstr_charat(cur_pid, j));
+				i++;
+				continue;
+			}
+		}
+		jstr_append(decoded_cmd, jstr_charat(input_cmd, i));
+	}
+}
+/* separate command to subcommands and put them into tmp_list */
 int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 {
 	int i;
@@ -164,14 +188,13 @@ int sep_cmd(JSTRING *input_cmd, BOOL *ifbg, ARRAYLIST *tmp_list)
 		arrlist_add(tmp_list, tmp_cmd);
 	}
 	else if (ifpipe&&!bgflag){
-		fprintf(stderr, "-%s: syntax error near unexpected token '|2'\n", getprogname());
+		fprintf(stderr, "-%s: syntax error near unexpected token '|'\n", getprogname());
 		return SYNTAX_ERR;
 	}
 	*ifbg = bg;
 	return 0;
 }
-
-
+/* get the redirection name */
 int getfilename(REDIRECT *subredir, JSTRING *subcmd, int *cur_index)
 {
 	int i = 0;
