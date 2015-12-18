@@ -9,10 +9,11 @@
  * the concrete function name or worry about adding a new
  * function to sish.
  */
-#include <bsd/stdlib.h>
+#ifdef _LINUX_
+	#include <bsd/stdlib.h>
+#endif
 
 #include <sys/stat.h>
-#include <bsd/stdlib.h>
 #include <sys/types.h>
 
 #include <errno.h>

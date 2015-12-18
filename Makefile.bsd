@@ -1,12 +1,11 @@
 CC=cc
 PROG=sish
-CFLAGS=-Wall
+CFLAGS=-D_NETBSD_ -Wall
 
 all: ${PROG}
 
 ${PROG}: main.c sish.o parse.o builtin.o jstring.o arraylist.o
-	$(CC) ${CFLAGS} -o ${PROG} main.c sish.o parse.o builtin.o jstring.o arraylist.o \
-	-lbsd
+	$(CC) ${CFLAGS} -o ${PROG} main.c sish.o parse.o builtin.o jstring.o arraylist.o
 
 sish.o: sish.c parse.o builtin.o jstring.o arraylist.o sish.h macros.h
 	$(CC) ${CFLAGS} -c sish.c
