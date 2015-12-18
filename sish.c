@@ -1,3 +1,7 @@
+/*
+ * This program is the main part of sish. It implements
+ * the process of executing command.
+ */
 #include <bsd/stdlib.h>
 
 #include <sys/stat.h>
@@ -41,12 +45,19 @@ static int env_question;
 static JSTRING *env_dollar_str;
 static JSTRING *env_question_str;
 
+/*
+ * This function reads command from stdin or struct
+ * sishopt, calls parse_command() to parse it, and
+ * calls exec_command() to execute the command.
+ */
 int 
 sish_run(struct sishopt *ssopt)
 {
 	char c;
 	extern JSTRING *command;
 	extern int env_question;
+	extern JSTRING *env_dollar_str;
+	extern JSTRING *env_question_str;
 	
 	int parse_status;
 	ARRAYLIST *cmd_list;
@@ -71,7 +82,9 @@ sish_run(struct sishopt *ssopt)
 	 */
 	if (ssopt->c_flag == TRUE) {
 		/* Parse the command, if error occurs, set %?. */
-		parse_status = parse_command(ssopt->command, cmd_list, &run_bg);
+		itojstr(env_question, env_question_str);
+		parse_status = parse_command(ssopt->command, cmd_list, &run_bg,
+							env_question_str, env_dollar_str);
 		if (parse_status != 0) {
 			env_question = parse_status;
 			return env_question;
@@ -88,7 +101,9 @@ sish_run(struct sishopt *ssopt)
 			while ((c = (char)getc(stdin)) != '\n')
 				jstr_append(command, c);
 			/* Parse the command, if error occurs, set %?. */
-			parse_status = parse_command(command, cmd_list, &run_bg);
+			itojstr(env_question, env_question_str);
+			parse_status = parse_command(command, cmd_list, &run_bg,
+							env_question_str, env_dollar_str);
 			if (parse_status != 0) {
 				env_question = parse_status;
 				continue;
@@ -319,6 +334,9 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 	int builtin_result;
 	extern pid_t env_dollar;
 	extern int env_question;
+	JSTRING *err_message;
+	
+	err_message = jstr_create("");
 	
 	/* If -x is set, write each command to stderr */
 	if (trace_command == TRUE && is_builtin(parsed) == TRUE)
@@ -355,8 +373,13 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 				(void)close(read_fd);
 			
 			read_fd = open(jstr_cstr(red->filename), O_RDONLY);
-			if (read_fd == -1)
-				perror_exit("open file error");
+			if (read_fd == -1) {
+				jstr_concat(err_message, "open '");
+				jstr_concat(err_message, jstr_cstr(red->filename));
+				jstr_concat(err_message, "' error");
+				perror_exit(jstr_cstr(err_message));
+			}
+				
 			if (dup2(read_fd, STDIN_FILENO) == -1)
 				perror_exit("dup2 STDIN_FILENO error");
 			
@@ -376,8 +399,12 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 			write_fd = open(jstr_cstr(red->filename), 
 					  open_flags,
 					  S_IRUSR | S_IWUSR);
-			if (write_fd == -1)
-				perror_exit("open file error");
+			if (write_fd == -1){
+				jstr_concat(err_message, "open '");
+				jstr_concat(err_message, jstr_cstr(red->filename));
+				jstr_concat(err_message, "' error");
+				perror_exit(jstr_cstr(err_message));
+			}
 			if (dup2(write_fd, STDOUT_FILENO) == -1)
 				perror_exit("dup2 STDOUT_FILENO error");
 			
@@ -403,10 +430,15 @@ do_exec(PARSED_CMD *parsed, int fd_in, int fd_out, BOOL trace_command)
 	if (trace_command == TRUE)
 		print_trace(parsed);
 	
-	if (execvp(jstr_cstr(parsed->command), argv) == -1)
-		perror_exit("execute command error");
-	
+	if (execvp(jstr_cstr(parsed->command), argv) == -1) {
+		jstr_concat(err_message, "execute '");
+		jstr_concat(err_message, jstr_cstr(parsed->command));
+		jstr_concat(err_message, "' error");
+		perror_exit(jstr_cstr(err_message));
+	}
+
 	free(argv);
+	jstr_free(err_message);
 }
 
 static void

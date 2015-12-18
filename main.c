@@ -1,8 +1,5 @@
 /*
- * This program implements a simple web server.
- * It binds to a given port on the given address 
- * and waits for incoming HTTP/1.0 requests. It 
- * serves content from the given directory.
+ * This program implements a simple shell.
  */
 #include <bsd/stdlib.h>
 
@@ -23,8 +20,8 @@ static void usage();
 
 /*
  * This function parses all command-line options 
- * and sets all flags, then calls start_server()
- * function to start the server.
+ * and sets all flags, then calls sish_run()
+ * function to start the shell.
  */
 int
 main(int argc, char *argv[])
